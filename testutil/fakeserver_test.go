@@ -57,7 +57,14 @@ func TestFakeServerHandshake(t *testing.T) {
 		t.Fatalf("write security type error: %v", err)
 	}
 
-	// No SecurityResult for security type None (kward/go-vnc compatibility).
+	// Read SecurityResult (RFB 3.8 requires it even for SecurityType None).
+	var securityResult uint32
+	if err := binary.Read(conn, binary.BigEndian, &securityResult); err != nil {
+		t.Fatalf("read security result error: %v", err)
+	}
+	if securityResult != 0 {
+		t.Fatalf("security result = %d, want 0", securityResult)
+	}
 
 	// Send ClientInit (shared=1)
 	if _, err := conn.Write([]byte{1}); err != nil {
@@ -176,7 +183,11 @@ func doHandshake(t *testing.T, addr string) net.Conn {
 		t.Fatalf("write security error: %v", err)
 	}
 
-	// No SecurityResult for security type None (kward/go-vnc compatibility).
+	// Read SecurityResult (RFB 3.8 requires it even for SecurityType None).
+	var securityResult uint32
+	if err := binary.Read(conn, binary.BigEndian, &securityResult); err != nil {
+		t.Fatalf("read security result error: %v", err)
+	}
 
 	// ClientInit
 	if _, err := conn.Write([]byte{1}); err != nil {

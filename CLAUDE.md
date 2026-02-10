@@ -19,7 +19,7 @@ All tests run offline using a fake VNC server in `testutil/`. No external VNC se
 - `main.go` — Entry point. Parses subcommand, global flags, connects to VNC, dispatches to `cmd/`.
 - `cmd/` — One file per subcommand (capture, key, typecmd, click, move). `root.go` has global flag parsing.
 - `vnc/client.go` — `VNCClient` interface. All commands use this interface, not the concrete client.
-- `vnc/realclient.go` — Implements `VNCClient` using `github.com/kward/go-vnc`.
+- `vnc/realclient.go` — Implements `VNCClient` using `github.com/kward/go-vnc` (via fork `tjst-t/go-vnc` with SecurityResult fix).
 - `vnc/keymap.go` — `ParseKeySequence("ctrl-c")` returns press/release actions with X11 keysym codes.
 - `vnc/input.go` — `SendKeySequence`, `SendTypeString`, `SendClick`, `SendMove` helpers.
 - `vnc/capture.go` — `CaptureToFile` captures framebuffer and writes PNG.
@@ -33,10 +33,10 @@ All tests run offline using a fake VNC server in `testutil/`. No external VNC se
 
 ## kward/go-vnc gotchas
 
+- Uses fork `tjst-t/go-vnc` via `replace` directive in go.mod (fixes SecurityResult for SecurityType None).
 - `NewClientConfig()` does NOT allocate `ServerMessageCh` — you must create it.
 - `ListenAndHandle()` calls `defer Close()` — connection closes when it returns.
 - `SetSettle(0)` disables the 25ms UI settle delay (important for tests).
-- SecurityType None: library skips reading SecurityResult (fake server must NOT send it for None).
 - Only `RawEncoding` is implemented. `Color.R/G/B` are `uint16` — cast to `uint8`.
 
 ## Testing

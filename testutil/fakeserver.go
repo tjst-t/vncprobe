@@ -143,13 +143,9 @@ func (s *FakeVNCServer) handleConn(conn net.Conn) {
 		return
 	}
 
-	// Note: For security type None (1), the kward/go-vnc library skips
-	// reading SecurityResult, so we do not send it. For other types,
-	// send SecurityResult (OK=0).
-	if secType[0] != 1 {
-		if err := binary.Write(conn, binary.BigEndian, uint32(0)); err != nil {
-			return
-		}
+	// SecurityResult (OK=0). RFB 3.8 requires this even for SecurityType None.
+	if err := binary.Write(conn, binary.BigEndian, uint32(0)); err != nil {
+		return
 	}
 
 	// --- ClientInit ---

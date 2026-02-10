@@ -1,8 +1,11 @@
 package vnc
 
 import (
+	"encoding/binary"
 	"image"
 	"image/color"
+	"io"
+	"net"
 	"testing"
 	"time"
 
@@ -92,6 +95,87 @@ func TestRealClientSendPointer(t *testing.T) {
 	}
 	if events[0].X != 100 || events[0].Y != 200 || events[0].ButtonMask != 1 {
 		t.Errorf("event[0] = %+v", events[0])
+	}
+}
+
+// TestRealClientConnectRFB38CompliantServer verifies that the go-vnc client
+// can connect to an RFB 3.8 compliant server that sends SecurityResult even
+// for SecurityType None. Per §7.1.3, the server MUST send SecurityResult
+// regardless of the security type in RFB 3.8.
+//
+// This test catches the kward/go-vnc bug where securityResultHandshake()
+// skips reading SecurityResult for SecurityType None, causing protocol
+// desync with compliant servers (QEMU, TigerVNC, libvirt, etc.).
+func TestRealClientConnectRFB38CompliantServer(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer ln.Close()
+
+	// RFB 3.8 compliant server: sends SecurityResult for SecurityType None.
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+
+		// Version handshake
+		conn.Write([]byte("RFB 003.008\n"))
+		ver := make([]byte, 12)
+		io.ReadFull(conn, ver)
+
+		// Security: offer SecurityType None (1)
+		conn.Write([]byte{1, 1})
+		sec := make([]byte, 1)
+		io.ReadFull(conn, sec)
+
+		// SecurityResult OK — RFB 3.8 REQUIRES this even for None
+		binary.Write(conn, binary.BigEndian, uint32(0))
+
+		// ClientInit
+		ci := make([]byte, 1)
+		io.ReadFull(conn, ci)
+
+		// ServerInit: 4x4 framebuffer
+		binary.Write(conn, binary.BigEndian, uint16(4)) // width
+		binary.Write(conn, binary.BigEndian, uint16(4)) // height
+		// PixelFormat: 32bpp, depth 24, little-endian, true-color
+		conn.Write([]byte{
+			32, 24, 0, 1,
+			0, 255, 0, 255, 0, 255,
+			16, 8, 0,
+			0, 0, 0,
+		})
+		// Desktop name
+		binary.Write(conn, binary.BigEndian, uint32(4))
+		conn.Write([]byte("test"))
+
+		// Drain client messages to keep connection alive
+		buf := make([]byte, 256)
+		for {
+			if _, err := conn.Read(buf); err != nil {
+				return
+			}
+		}
+	}()
+
+	client := NewRealClient()
+	err = client.Connect(ln.Addr().String(), "", 5*time.Second)
+	if err != nil {
+		t.Fatalf("Connect to RFB 3.8 compliant server failed: %v", err)
+	}
+	defer client.Close()
+
+	// Verify framebuffer dimensions are correct.
+	// If the client skips reading SecurityResult (4 bytes of zeros),
+	// those bytes are consumed as width=0, height=0 instead, and
+	// the rest of ServerInit is parsed from a 4-byte offset — all garbled.
+	w := client.conn.FramebufferWidth()
+	h := client.conn.FramebufferHeight()
+	if w != 4 || h != 4 {
+		t.Fatalf("framebuffer size = %dx%d, want 4x4 (protocol desync due to unread SecurityResult?)", w, h)
 	}
 }
 

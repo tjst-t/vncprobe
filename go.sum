@@ -1,2 +1,2 @@
-github.com/kward/go-vnc v0.0.0-20251026235910-a389e865f061 h1:Lw/8Da83xt1QS3V6Fk5NufyevGPlwPH1fXf97ZYk7kc=
-github.com/kward/go-vnc v0.0.0-20251026235910-a389e865f061/go.mod h1:Ei1ybRjEbSbBKK/LVTkIJgCQ8knEG/BHBJCV0PVv0VA=
+github.com/tjst-t/go-vnc v0.0.0-20260210025735-b3885c697702 h1:9G4NjBMEzuA+i4EgVos8pTZ11RE4Skn5WUgEg2Jh7I0=
+github.com/tjst-t/go-vnc v0.0.0-20260210025735-b3885c697702/go.mod h1:Ei1ybRjEbSbBKK/LVTkIJgCQ8knEG/BHBJCV0PVv0VA=
