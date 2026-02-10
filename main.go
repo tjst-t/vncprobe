@@ -9,6 +9,8 @@ import (
 	"github.com/tjst-t/vncprobe/vnc"
 )
 
+var version = "dev"
+
 func main() {
 	os.Exit(run(os.Args[1:]))
 }
@@ -24,6 +26,9 @@ func run(args []string) int {
 
 	// Validate command before parsing flags or connecting
 	switch command {
+	case "-v", "--version", "version":
+		fmt.Println(version)
+		return 0
 	case "capture", "key", "type", "click", "move":
 		// valid
 	default:

@@ -234,3 +234,20 @@ func TestE2ENoArgs(t *testing.T) {
 		t.Errorf("exit code = %d, want 1", code)
 	}
 }
+
+func TestE2EVersion(t *testing.T) {
+	code := runVncprobe(t, "-v")
+	if code != 0 {
+		t.Errorf("exit code = %d, want 0", code)
+	}
+
+	code = runVncprobe(t, "--version")
+	if code != 0 {
+		t.Errorf("exit code = %d, want 0", code)
+	}
+
+	code = runVncprobe(t, "version")
+	if code != 0 {
+		t.Errorf("exit code = %d, want 0", code)
+	}
+}
