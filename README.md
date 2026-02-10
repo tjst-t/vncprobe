@@ -4,6 +4,17 @@ A single-binary CLI tool for VNC screen capture, keyboard input, and mouse opera
 
 ## Install
 
+Download a prebuilt binary from [GitHub Releases](https://github.com/tjst-t/vncprobe/releases/latest):
+
+```bash
+# Example: Linux amd64
+curl -Lo vncprobe "https://github.com/tjst-t/vncprobe/releases/latest/download/vncprobe-$(curl -sL https://api.github.com/repos/tjst-t/vncprobe/releases/latest | grep -oP '\"tag_name\": \"\K[^\"]+' )-linux-amd64"
+chmod +x vncprobe
+sudo mv vncprobe /usr/local/bin/
+```
+
+Or install with `go install`:
+
 ```bash
 go install github.com/tjst-t/vncprobe@latest
 ```
@@ -129,6 +140,17 @@ vncprobe/
 VNC経由で画面キャプチャ・キー入力・マウス操作を行う単独バイナリのCLIツール。Claude CodeによるVMコンソールなどの自動操作用。
 
 ## インストール
+
+[GitHub Releases](https://github.com/tjst-t/vncprobe/releases/latest) からビルド済みバイナリをダウンロード:
+
+```bash
+# 例: Linux amd64
+curl -Lo vncprobe "https://github.com/tjst-t/vncprobe/releases/latest/download/vncprobe-$(curl -sL https://api.github.com/repos/tjst-t/vncprobe/releases/latest | grep -oP '\"tag_name\": \"\K[^\"]+' )-linux-amd64"
+chmod +x vncprobe
+sudo mv vncprobe /usr/local/bin/
+```
+
+`go install` でインストール:
 
 ```bash
 go install github.com/tjst-t/vncprobe@latest
