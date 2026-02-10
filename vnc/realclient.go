@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"io"
+	"log"
 	"net"
 	"time"
 
@@ -111,6 +113,7 @@ func (c *RealClient) SendPointer(x, y uint16, buttonMask uint8) error {
 
 func (c *RealClient) Close() error {
 	if c.conn != nil {
+		log.SetOutput(io.Discard)
 		return c.conn.Close()
 	}
 	return nil
