@@ -10,12 +10,14 @@ type GlobalOpts struct {
 	Server   string
 	Password string
 	Timeout  int
+	Socket   string
 }
 
 // globalStringFlags maps flag names that take a string value.
 var globalStringFlags = map[string]bool{
 	"-s": true, "--server": true,
 	"-p": true, "--password": true,
+	"--socket": true,
 }
 
 // globalIntFlags maps flag names that take an int value.
@@ -42,6 +44,8 @@ func ParseGlobalFlags(args []string) (*GlobalOpts, []string, error) {
 				opts.Server = val
 			case "-p", "--password":
 				opts.Password = val
+			case "--socket":
+				opts.Socket = val
 			}
 		} else if globalIntFlags[arg] {
 			if i+1 >= len(args) {
@@ -61,7 +65,7 @@ func ParseGlobalFlags(args []string) (*GlobalOpts, []string, error) {
 		}
 	}
 
-	if opts.Server == "" {
+	if opts.Server == "" && opts.Socket == "" {
 		return nil, nil, fmt.Errorf("server address is required (-s or --server)")
 	}
 
@@ -93,9 +97,12 @@ func Usage() string {
 	b.WriteString("  type      Type a string\n")
 	b.WriteString("  click     Mouse click\n")
 	b.WriteString("  move      Mouse move\n")
+	b.WriteString("  wait      Wait for screen change or stability\n")
+	b.WriteString("  session   Manage persistent VNC sessions\n")
 	b.WriteString("\nGlobal Options:\n")
 	b.WriteString("  -s, --server    VNC server address (required)\n")
 	b.WriteString("  -p, --password  VNC password\n")
 	b.WriteString("  --timeout       Connection timeout in seconds (default: 10)\n")
+	b.WriteString("  --socket        Use session socket instead of direct connection\n")
 	return b.String()
 }

@@ -17,18 +17,23 @@ All tests run offline using a fake VNC server in `testutil/`. No external VNC se
 ## Architecture
 
 - `main.go` — Entry point. Parses subcommand, global flags, connects to VNC, dispatches to `cmd/`.
-- `cmd/` — One file per subcommand (capture, key, typecmd, click, move). `root.go` has global flag parsing.
+- `cmd/` — One file per subcommand (capture, key, typecmd, click, move, wait, session). `root.go` has global flag parsing.
 - `vnc/client.go` — `VNCClient` interface. All commands use this interface, not the concrete client.
 - `vnc/realclient.go` — Implements `VNCClient` using `github.com/kward/go-vnc` (via fork `tjst-t/go-vnc` with SecurityResult fix).
 - `vnc/keymap.go` — `ParseKeySequence("ctrl-c")` returns press/release actions with X11 keysym codes.
 - `vnc/input.go` — `SendKeySequence`, `SendTypeString`, `SendClick`, `SendMove` helpers.
 - `vnc/capture.go` — `CaptureToFile` captures framebuffer and writes PNG.
-- `testutil/fakeserver.go` — Minimal RFB 003.008 server for testing. Records key/pointer events.
+- `vnc/compare.go` — `DiffRatio` for pixel-level image comparison.
+- `vnc/wait.go` — `WaitForChange`, `WaitForStable` polling loops.
+- `session/` — Session server (UNIX socket) and client for persistent VNC connections.
+- `testutil/fakeserver.go` — Minimal RFB 003.008 server for testing. Records key/pointer events. `SetImage()` for dynamic screen changes.
 
 ## Key conventions
 
 - Exit codes: 0=success, 1=arg error, 2=connection error, 3=operation error.
-- Global flags (`-s`, `-p`, `--timeout`) are parsed manually (not `flag.FlagSet`) to allow mixing with subcommand flags.
+- Global flags (`-s`, `-p`, `--timeout`, `--socket`) are parsed manually (not `flag.FlagSet`) to allow mixing with subcommand flags.
+- `--socket` enables session mode; when set, `-s` is not required.
+- `wait` subcommands use `--max-wait` (not `--timeout`) to avoid collision with the global connection timeout.
 - Button numbers in CLI (1=left, 2=middle, 3=right) are converted to RFB bitmasks (1, 2, 4) by `ButtonNumberToMask`.
 
 ## kward/go-vnc gotchas

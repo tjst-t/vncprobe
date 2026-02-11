@@ -214,6 +214,145 @@ func TestE2EMove(t *testing.T) {
 	}
 }
 
+func TestE2EWaitChange(t *testing.T) {
+	red := solidColorImage(64, 64, color.RGBA{R: 255, A: 255})
+	blue := solidColorImage(64, 64, color.RGBA{B: 255, A: 255})
+
+	srv := testutil.StartFakeVNCServer(t, red)
+
+	// Change the image after a short delay
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		srv.SetImage(blue)
+	}()
+
+	code := runVncprobe(t, "wait", "change", "-s", srv.Addr, "--max-wait", "5", "--interval", "0.1")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+}
+
+func TestE2EWaitChangeTimeout(t *testing.T) {
+	srv := testutil.StartFakeVNCServer(t, e2eImage())
+
+	// Image never changes → should timeout
+	code := runVncprobe(t, "wait", "change", "-s", srv.Addr, "--max-wait", "0.5", "--interval", "0.1")
+	if code != 3 {
+		t.Fatalf("exit code = %d, want 3 (timeout)", code)
+	}
+}
+
+func TestE2EWaitStable(t *testing.T) {
+	red := solidColorImage(64, 64, color.RGBA{R: 255, A: 255})
+	blue := solidColorImage(64, 64, color.RGBA{B: 255, A: 255})
+
+	srv := testutil.StartFakeVNCServer(t, red)
+
+	// Change image once, then stay stable
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		srv.SetImage(blue)
+	}()
+
+	code := runVncprobe(t, "wait", "stable", "-s", srv.Addr, "--duration", "0.5", "--max-wait", "5", "--interval", "0.1")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+}
+
+func TestE2EWaitNoSubcommand(t *testing.T) {
+	srv := testutil.StartFakeVNCServer(t, e2eImage())
+	code := runVncprobe(t, "wait", "-s", srv.Addr)
+	if code != 3 {
+		t.Fatalf("exit code = %d, want 3", code)
+	}
+}
+
+func solidColorImage(w, h int, c color.Color) image.Image {
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			img.Set(x, y, c)
+		}
+	}
+	return img
+}
+
+func TestE2ESessionCapture(t *testing.T) {
+	srv := testutil.StartFakeVNCServer(t, e2eImage())
+	sock := filepath.Join(t.TempDir(), "test.sock")
+	out := filepath.Join(t.TempDir(), "screen.png")
+
+	// Start session in background
+	done := make(chan int, 1)
+	go func() {
+		done <- runVncprobe(t, "session", "start", "-s", srv.Addr, "--socket", sock)
+	}()
+
+	// Wait for socket to appear
+	for i := 0; i < 100; i++ {
+		if _, err := os.Stat(sock); err == nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// Capture via session
+	code := runVncprobe(t, "capture", "--socket", sock, "-o", out)
+	if code != 0 {
+		t.Fatalf("capture via session: exit code = %d, want 0", code)
+	}
+
+	// Verify output file
+	f, err := os.Open(out)
+	if err != nil {
+		t.Fatalf("open output: %v", err)
+	}
+	defer f.Close()
+	decoded, err := png.Decode(f)
+	if err != nil {
+		t.Fatalf("decode output: %v", err)
+	}
+	bounds := decoded.Bounds()
+	if bounds.Dx() != 64 || bounds.Dy() != 64 {
+		t.Errorf("output size = %dx%d, want 64x64", bounds.Dx(), bounds.Dy())
+	}
+
+	// Stop session
+	code = runVncprobe(t, "session", "stop", "--socket", sock)
+	if code != 0 {
+		t.Fatalf("session stop: exit code = %d, want 0", code)
+	}
+}
+
+func TestE2ESessionMultipleCommands(t *testing.T) {
+	srv := testutil.StartFakeVNCServer(t, e2eImage())
+	sock := filepath.Join(t.TempDir(), "test.sock")
+
+	go runVncprobe(t, "session", "start", "-s", srv.Addr, "--socket", sock)
+
+	for i := 0; i < 100; i++ {
+		if _, err := os.Stat(sock); err == nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// key via session
+	code := runVncprobe(t, "key", "--socket", sock, "enter")
+	if code != 0 {
+		t.Fatalf("key via session: exit code = %d, want 0", code)
+	}
+
+	// type via session
+	code = runVncprobe(t, "type", "--socket", sock, "hello")
+	if code != 0 {
+		t.Fatalf("type via session: exit code = %d, want 0", code)
+	}
+
+	runVncprobe(t, "session", "stop", "--socket", sock)
+}
+
 func TestE2EMissingServer(t *testing.T) {
 	code := runVncprobe(t, "capture")
 	if code != 1 {

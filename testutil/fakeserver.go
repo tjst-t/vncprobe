@@ -87,6 +87,14 @@ func StartFakeVNCServer(t *testing.T, framebufferImage image.Image) *FakeVNCServ
 	return srv
 }
 
+// SetImage replaces the framebuffer image atomically. Subsequent
+// FramebufferUpdateRequests will use the new image.
+func (s *FakeVNCServer) SetImage(img image.Image) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.img = img
+}
+
 // GetKeyEvents returns a copy of all recorded key events.
 func (s *FakeVNCServer) GetKeyEvents() []KeyEvent {
 	s.mu.Lock()
@@ -269,7 +277,11 @@ func (s *FakeVNCServer) handleConn(conn net.Conn) {
 }
 
 func (s *FakeVNCServer) sendFramebufferUpdate(conn net.Conn, pf *pixelFormat) {
-	bounds := s.img.Bounds()
+	s.mu.Lock()
+	img := s.img
+	s.mu.Unlock()
+
+	bounds := img.Bounds()
 	width := uint16(bounds.Dx())
 	height := uint16(bounds.Dy())
 
@@ -292,7 +304,7 @@ func (s *FakeVNCServer) sendFramebufferUpdate(conn net.Conn, pf *pixelFormat) {
 
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			r, g, b, _ := s.img.At(x, y).RGBA()
+			r, g, b, _ := img.At(x, y).RGBA()
 			// Scale from 16-bit (0-65535) to the client's max range.
 			rScaled := uint32(r) * uint32(pf.redMax) / 65535
 			gScaled := uint32(g) * uint32(pf.greenMax) / 65535
