@@ -13,15 +13,25 @@ func SendKeySequence(client VNCClient, actions []KeyAction) error {
 
 func SendTypeString(client VNCClient, text string) error {
 	for _, r := range text {
-		code, err := RuneToKeyCode(r)
+		keysym, shift, err := RuneToKeyInfo(r)
 		if err != nil {
 			return fmt.Errorf("type string: %w", err)
 		}
-		if err := client.SendKey(code, true); err != nil {
+		if shift {
+			if err := client.SendKey(0xffe1, true); err != nil {
+				return fmt.Errorf("type string shift press for %q: %w", r, err)
+			}
+		}
+		if err := client.SendKey(keysym, true); err != nil {
 			return fmt.Errorf("type string press %q: %w", r, err)
 		}
-		if err := client.SendKey(code, false); err != nil {
+		if err := client.SendKey(keysym, false); err != nil {
 			return fmt.Errorf("type string release %q: %w", r, err)
+		}
+		if shift {
+			if err := client.SendKey(0xffe1, false); err != nil {
+				return fmt.Errorf("type string shift release for %q: %w", r, err)
+			}
 		}
 	}
 	return nil

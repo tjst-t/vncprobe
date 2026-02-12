@@ -117,25 +117,112 @@ func TestE2EType(t *testing.T) {
 	var events []testutil.KeyEvent
 	for i := 0; i < 100; i++ {
 		events = srv.GetKeyEvents()
+		if len(events) >= 6 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	// 'H' = Shift+h (4 events), 'i' = normal (2 events) = 6 total
+	if len(events) != 6 {
+		t.Fatalf("got %d key events, want 6: %+v", len(events), events)
+	}
+	if events[0].Key != 0xffe1 || events[0].DownFlag != true {
+		t.Errorf("event[0] = %+v, want Shift_L press", events[0])
+	}
+	if events[1].Key != 0x0068 || events[1].DownFlag != true {
+		t.Errorf("event[1] = %+v, want 'h' press", events[1])
+	}
+	if events[2].Key != 0x0068 || events[2].DownFlag != false {
+		t.Errorf("event[2] = %+v, want 'h' release", events[2])
+	}
+	if events[3].Key != 0xffe1 || events[3].DownFlag != false {
+		t.Errorf("event[3] = %+v, want Shift_L release", events[3])
+	}
+	if events[4].Key != 0x0069 || events[4].DownFlag != true {
+		t.Errorf("event[4] = %+v, want 'i' press", events[4])
+	}
+	if events[5].Key != 0x0069 || events[5].DownFlag != false {
+		t.Errorf("event[5] = %+v, want 'i' release", events[5])
+	}
+}
+
+func TestE2ETypeShiftedChars(t *testing.T) {
+	srv := testutil.StartFakeVNCServer(t, e2eImage())
+
+	code := runVncprobe(t, "type", "-s", srv.Addr, "a!")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+
+	var events []testutil.KeyEvent
+	for i := 0; i < 100; i++ {
+		events = srv.GetKeyEvents()
+		if len(events) >= 6 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	// 'a' = press+release (2 events), '!' = Shift press + '1' press + '1' release + Shift release (4 events)
+	if len(events) != 6 {
+		t.Fatalf("got %d key events, want 6: %+v", len(events), events)
+	}
+	// 'a' press
+	if events[0].Key != 0x0061 || events[0].DownFlag != true {
+		t.Errorf("event[0] = %+v, want 'a' press", events[0])
+	}
+	// 'a' release
+	if events[1].Key != 0x0061 || events[1].DownFlag != false {
+		t.Errorf("event[1] = %+v, want 'a' release", events[1])
+	}
+	// Shift_L press
+	if events[2].Key != 0xffe1 || events[2].DownFlag != true {
+		t.Errorf("event[2] = %+v, want Shift_L press", events[2])
+	}
+	// '1' press (base key for '!')
+	if events[3].Key != 0x0031 || events[3].DownFlag != true {
+		t.Errorf("event[3] = %+v, want '1' press", events[3])
+	}
+	// '1' release
+	if events[4].Key != 0x0031 || events[4].DownFlag != false {
+		t.Errorf("event[4] = %+v, want '1' release", events[4])
+	}
+	// Shift_L release
+	if events[5].Key != 0xffe1 || events[5].DownFlag != false {
+		t.Errorf("event[5] = %+v, want Shift_L release", events[5])
+	}
+}
+
+func TestE2EKeyShiftedChar(t *testing.T) {
+	srv := testutil.StartFakeVNCServer(t, e2eImage())
+
+	code := runVncprobe(t, "key", "-s", srv.Addr, "!")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+
+	var events []testutil.KeyEvent
+	for i := 0; i < 100; i++ {
+		events = srv.GetKeyEvents()
 		if len(events) >= 4 {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
+	// '!' should send: Shift press, '1' press, '1' release, Shift release
 	if len(events) != 4 {
-		t.Fatalf("got %d key events, want 4", len(events))
+		t.Fatalf("got %d key events, want 4: %+v", len(events), events)
 	}
-	if events[0].Key != 0x0048 || events[0].DownFlag != true {
-		t.Errorf("event[0] = %+v, want H press", events[0])
+	if events[0].Key != 0xffe1 || events[0].DownFlag != true {
+		t.Errorf("event[0] = %+v, want Shift_L press", events[0])
 	}
-	if events[1].Key != 0x0048 || events[1].DownFlag != false {
-		t.Errorf("event[1] = %+v, want H release", events[1])
+	if events[1].Key != 0x0031 || events[1].DownFlag != true {
+		t.Errorf("event[1] = %+v, want '1' press", events[1])
 	}
-	if events[2].Key != 0x0069 || events[2].DownFlag != true {
-		t.Errorf("event[2] = %+v, want i press", events[2])
+	if events[2].Key != 0x0031 || events[2].DownFlag != false {
+		t.Errorf("event[2] = %+v, want '1' release", events[2])
 	}
-	if events[3].Key != 0x0069 || events[3].DownFlag != false {
-		t.Errorf("event[3] = %+v, want i release", events[3])
+	if events[3].Key != 0xffe1 || events[3].DownFlag != false {
+		t.Errorf("event[3] = %+v, want Shift_L release", events[3])
 	}
 }
 

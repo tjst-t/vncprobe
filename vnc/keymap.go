@@ -50,25 +50,59 @@ var modifierKeys = map[string]uint32{
 	"meta":  0xffe7,
 }
 
-func RuneToKeyCode(r rune) (uint32, error) {
-	if r >= 0x20 && r <= 0x7e {
-		return uint32(r), nil
+// shiftedCharToBase maps shifted characters to their unshifted base key (US keyboard layout).
+var shiftedCharToBase = map[rune]rune{
+	'!': '1', '@': '2', '#': '3', '$': '4', '%': '5',
+	'^': '6', '&': '7', '*': '8', '(': '9', ')': '0',
+	'_': '-', '+': '=',
+	'{': '[', '}': ']', '|': '\\',
+	':': ';', '"': '\'',
+	'<': ',', '>': '.', '?': '/',
+	'~': '`',
+}
+
+// RuneToKeyInfo returns the base keysym and whether Shift is needed for the given rune.
+func RuneToKeyInfo(r rune) (keysym uint32, shift bool, err error) {
+	// Uppercase letters: Shift + lowercase
+	if r >= 'A' && r <= 'Z' {
+		return uint32(r - 'A' + 'a'), true, nil
 	}
-	return 0, fmt.Errorf("unsupported rune: %q (0x%04x)", r, r)
+	// Shifted symbols: Shift + base key
+	if base, ok := shiftedCharToBase[r]; ok {
+		return uint32(base), true, nil
+	}
+	// Normal printable ASCII
+	if r >= 0x20 && r <= 0x7e {
+		return uint32(r), false, nil
+	}
+	return 0, false, fmt.Errorf("unsupported rune: %q (0x%04x)", r, r)
+}
+
+func RuneToKeyCode(r rune) (uint32, error) {
+	keysym, _, err := RuneToKeyInfo(r)
+	return keysym, err
 }
 
 func ParseKeySequence(input string) ([]KeyAction, error) {
-	input = strings.ToLower(input)
-	parts := strings.Split(input, "-")
+	lower := strings.ToLower(input)
+	parts := strings.Split(lower, "-")
 
 	var modifiers []uint32
 	finalKeyStr := ""
+	finalKeyOriginal := ""
 
 	for i, part := range parts {
 		if code, ok := modifierKeys[part]; ok {
 			modifiers = append(modifiers, code)
 		} else {
 			finalKeyStr = strings.Join(parts[i:], "-")
+			// Reconstruct original-case version for single-char handling
+			origParts := strings.SplitN(input, "-", i+1)
+			if len(origParts) > i {
+				finalKeyOriginal = origParts[i]
+			} else {
+				finalKeyOriginal = finalKeyStr
+			}
 			break
 		}
 	}
@@ -95,12 +129,15 @@ func ParseKeySequence(input string) ([]KeyAction, error) {
 	if code, ok := namedKeys[finalKeyStr]; ok {
 		finalKeyCode = code
 	} else if len(finalKeyStr) == 1 {
-		r := rune(finalKeyStr[0])
-		code, err := RuneToKeyCode(r)
+		r := rune(finalKeyOriginal[0])
+		keysym, shift, err := RuneToKeyInfo(r)
 		if err != nil {
 			return nil, err
 		}
-		finalKeyCode = code
+		finalKeyCode = keysym
+		if shift {
+			modifiers = append([]uint32{0xffe1}, modifiers...)
+		}
 	} else {
 		return nil, fmt.Errorf("unknown key: %q", finalKeyStr)
 	}
