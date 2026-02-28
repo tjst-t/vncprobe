@@ -50,3 +50,9 @@ All tests run offline using a fake VNC server in `testutil/`. No external VNC se
 - Integration tests: `vnc/realclient_test.go` tests the real client against the fake server.
 - E2E tests: `e2e_test.go` calls `run()` directly with fake server — full CLI flow.
 - Fake server: `testutil/fakeserver.go` uses port `:0` (OS auto-assign) to avoid conflicts.
+- Fake server sends `SecurityResult` for all `SecurityType`s (RFB 3.8 compliant).
+- Fake server must handle `SetPixelFormat` dynamically — client may change pixel format after connect.
+
+## Go Environment
+
+- Go is installed at `/usr/local/go/bin/go` — may not be in default `PATH`. If `go` is not found, prefix with: `export PATH=$PATH:/usr/local/go/bin`
